@@ -1,27 +1,61 @@
-#include <U8g2lib.h>  // Include the U8g2 library for handling the LCD display
+#include <U8g2lib.h>
+
+// Buzzer pin definition
+const int buzzerPin = 15;
+
+// Note frequencies (in Hz)
+#define NOTE_C4  262
+#define NOTE_D4  294
+#define NOTE_E4  330
+#define NOTE_F4  349
+#define NOTE_G4  392
+#define NOTE_A4  440
+#define NOTE_B4  494
+#define NOTE_C5  523
+#define NOTE_REST 0
+
+// Space theme melody
+const int melody[] = {
+  NOTE_C4, NOTE_F4, NOTE_G4, NOTE_REST,
+  NOTE_E4, NOTE_A4, NOTE_G4, NOTE_REST,
+  NOTE_C4, NOTE_D4, NOTE_E4, NOTE_REST,
+  NOTE_F4, NOTE_E4, NOTE_D4, NOTE_REST
+};
+
+// Duration of each note (in milliseconds)
+const int noteDurations[] = {
+  200, 200, 200, 100,
+  200, 200, 200, 100,
+  200, 200, 200, 100,
+  200, 200, 200, 100
+};
+
+// Keep track of the current note
+int currentNote = 0;
+unsigned long lastNoteTime = 0;
 
 // Initialize the ST7920 128x64 display in SPI mode with vertical orientation
 U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R1, /* clock (E)=*/ 14, /* data (R/W)=*/ 12, /* CS (RS)=*/ 13, /* reset=*/ U8X8_PIN_NONE);
 
 // Triangle position and size variables
-int triangleX = 27;             // X position of the triangle (player)
-const int triangleWidth = 10;   // Width of the triangle (player)
-const int triangleBaseY = 100;  // Y position of the base of the triangle
-const int triangleTipY = 85;    // Y position of the tip of the triangle
+int triangleX = 27;             
+const int triangleWidth = 10;   
+const int triangleBaseY = 100;  
+const int triangleTipY = 85;    
 
 // Timing variables
-unsigned long previousMillis = 0;  // Store the last time the display was updated
-const long interval = 16.67;        // Time interval for the game loop (about 60 frames per second)
+unsigned long previousMillis = 0;
+const long interval = 16.67;    
 
 // Maximum number of meteors in the game
 const int maxMeteorCount = 5;
 
 // Define a structure to represent a meteor
 struct Meteor {
-  int x;         // X position of the meteor
-  int y;         // Y position of the meteor
-  int size;      // Size (radius) of the meteor
-  bool active;   // Status indicating if the meteor is active (visible)
+  int x;        
+  int y;        
+  int size;     
+  bool active;  
 };
 
 // Array to hold multiple meteors
@@ -31,81 +65,94 @@ Meteor meteors[maxMeteorCount];
 int score = 0;
 
 // Pin numbers for the left and right buttons
-const int buttonLeftPin = 5;   // Pin for the left button
-const int buttonRightPin = 4;  // Pin for the right button
+const int buttonLeftPin = 5;   
+const int buttonRightPin = 4;  
+
+void playNote() {
+  unsigned long currentTime = millis();
+  
+  // Check if it's time to play the next note
+  if (currentTime - lastNoteTime >= noteDurations[currentNote]) {
+    // Stop the previous note
+    noTone(buzzerPin);
+    
+    // Move to the next note
+    currentNote = (currentNote + 1) % (sizeof(melody) / sizeof(melody[0]));
+    
+    // Play the current note if it's not a rest
+    if (melody[currentNote] != NOTE_REST) {
+      tone(buzzerPin, melody[currentNote]);
+    }
+    
+    lastNoteTime = currentTime;
+  }
+}
 
 void setup() {
-  u8g2.begin();                          // Initialize the display
-  pinMode(buttonLeftPin, INPUT_PULLUP); // Set the left button pin as input with pull-up resistor
-  pinMode(buttonRightPin, INPUT_PULLUP);// Set the right button pin as input with pull-up resistor
+  u8g2.begin();                         
+  pinMode(buttonLeftPin, INPUT_PULLUP);
+  pinMode(buttonRightPin, INPUT_PULLUP);
+  pinMode(buzzerPin, OUTPUT);           // Set up the buzzer pin
 
   // Initialize meteors with random positions and sizes
   for (int i = 0; i < maxMeteorCount; i++) {
-    meteors[i].x = random(0, 64);       // Random X position within the screen width
-    meteors[i].y = random(-127, 0);     // Random Y position starting above the screen
-    meteors[i].size = random(2, 8);     // Random size for the meteor
-    meteors[i].active = true;           // Set the meteor as active (visible)
+    meteors[i].x = random(0, 64);      
+    meteors[i].y = random(-127, 0);    
+    meteors[i].size = random(2, 8);    
+    meteors[i].active = true;          
   }
 }
 
 void loop() {
-  unsigned long currentMillis = millis(); // Get the current time in milliseconds
+  unsigned long currentMillis = millis();
   
-  // Check if the time interval has passed
+  // Play background music
+  playNote();
+  
   if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;  // Update the last update time
+    previousMillis = currentMillis;
 
-    // Clear the previous frame
     u8g2.clearBuffer();
     
-    // Draw the score on the display
-    u8g2.setFont(u8g2_font_5x8_tr);  // Set the font for the text
-    u8g2.drawStr(5, 125, "Score:");   // Draw the "Score:" label
-    u8g2.setCursor(40, 125);          // Set the cursor position for the score number
-    u8g2.print(score);                 // Print the current score
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(5, 125, "Score:");
+    u8g2.setCursor(40, 125);
+    u8g2.print(score);
     
-    // Draw the game frame
-    u8g2.drawFrame(0, 0, 64, 128);    // Draw a frame around the game area
-    u8g2.drawLine(0, 115, 64, 115);    // Draw a line separating the game area from the score
-    // Draw the triangle (player) on the screen
+    u8g2.drawFrame(0, 0, 64, 128);
+    u8g2.drawLine(0, 115, 64, 115);
     u8g2.drawTriangle(triangleX, triangleBaseY, triangleX + 5, triangleTipY, triangleX + 10, triangleBaseY);
 
-    // Loop through each meteor to update its position and draw it
     for (int i = 0; i < maxMeteorCount; i++) {
-      if (meteors[i].active) {  // Check if the meteor is active
-        u8g2.drawDisc(meteors[i].x, meteors[i].y, meteors[i].size); // Draw the meteor
-        meteors[i].y += 4;  // Move the meteor downwards
+      if (meteors[i].active) {
+        u8g2.drawDisc(meteors[i].x, meteors[i].y, meteors[i].size);
+        meteors[i].y += 4;
 
-        // If the meteor goes off the screen, reset its position and increase score
         if (meteors[i].y > 110) {
-          meteors[i].y = 0;  // Reset the meteor to the top of the screen
-          meteors[i].x = random(6, 58); // Randomize its X position
-          score++;  // Increase score for each meteor that goes off screen
+          meteors[i].y = 0;
+          meteors[i].x = random(6, 58);
+          score++;
         }
 
-        // Check for collision between the triangle and the meteor
         if (meteors[i].y + meteors[i].size >= triangleTipY && meteors[i].y - meteors[i].size <= triangleBaseY) {
           if (meteors[i].x >= triangleX && meteors[i].x <= triangleX + triangleWidth) {
-            score = 0;  // Reset score if the meteor hits the triangle
-            meteors[i].y = 0; // Reset the meteor position
+            score = 0;
+            meteors[i].y = 0;
           }
         }
       }
     }
 
-    // Check if the left button is pressed
     if (digitalRead(buttonLeftPin) == LOW) {
-      triangleX -= 5; // Move the triangle left
-      if (triangleX < 0) triangleX = 0; // Prevent moving out of bounds
+      triangleX -= 5;
+      if (triangleX < 0) triangleX = 0;
     }
 
-    // Check if the right button is pressed
     if (digitalRead(buttonRightPin) == LOW) {
-      triangleX += 5; // Move the triangle right
-      if (triangleX > 54) triangleX = 54; // Prevent moving out of bounds
+      triangleX += 5;
+      if (triangleX > 54) triangleX = 54;
     }
 
-    // Send the buffer to the display to render the graphics
     u8g2.sendBuffer();
   }
 }
