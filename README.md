@@ -1,8 +1,8 @@
-# Meteor Dodge
+# Cosmic Escape
 
 ## Overview
 
-**Meteor Dodge** is an exciting space-themed game where players control a ship, dodging incoming meteors while racking up points. Built for the ESP8266 microcontroller, this game showcases the power of embedded programming and real-time graphics on a 128x64 LCD display. Now with **space-themed background music**!
+**Cosmic Escape** is an exciting space-themed game where players control a ship, dodging incoming meteors while racking up points. Built for the ESP8266 microcontroller, this game showcases the power of embedded programming and real-time graphics on a 128x64 LCD display. Now with **space-themed background music**!
 
 ## Features
 
